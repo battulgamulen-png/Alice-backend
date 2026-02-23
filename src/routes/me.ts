@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getBearerUserId } from "../auth";
+import { emailRegex, getBearerUserId } from "../auth";
 import { Prisma } from "@prisma/client";
 import { ensureDatabaseSchema, prisma } from "../prisma";
 import { sendJson } from "../http";
@@ -43,6 +43,55 @@ router.get("/me", async (req, res) => {
   return sendJson(res, 200, { user });
 });
 
+router.put("/me/profile", async (req, res) => {
+  const userId = getBearerUserId(req);
+  if (!userId) {
+    return sendJson(res, 401, { error: "Unauthorized" });
+  }
+
+  const { firstName, lastName, email, phone } = req.body as {
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    phone?: string;
+  };
+
+  if (!firstName || !firstName.trim() || !lastName || !lastName.trim() || !email) {
+    return sendJson(res, 400, { error: "firstName, lastName and email are required" });
+  }
+  if (!emailRegex.test(email.trim())) {
+    return sendJson(res, 400, { error: "Invalid email" });
+  }
+
+  try {
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        email: email.trim().toLowerCase(),
+        phone: phone?.trim() || null,
+      },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        phone: true,
+        balanceUsdCents: true,
+      },
+    });
+
+    return sendJson(res, 200, { user });
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      return sendJson(res, 409, { error: "Email already exists" });
+    }
+    console.error(err);
+    return sendJson(res, 500, { error: "Could not update profile" });
+  }
+});
+
 router.get("/me/cards", async (req, res) => {
   const userId = getBearerUserId(req);
   if (!userId) {
@@ -72,6 +121,54 @@ router.get("/me/cards", async (req, res) => {
     }
     console.error(err);
     return sendJson(res, 500, { error: "Could not load cards" });
+  }
+});
+
+router.get("/me/cards/lookup", async (req, res) => {
+  const userId = getBearerUserId(req);
+  if (!userId) {
+    return sendJson(res, 401, { error: "Unauthorized" });
+  }
+
+  const numberRaw = typeof req.query.number === "string" ? req.query.number : "";
+  const number = normalizeCardNumber(numberRaw);
+  if (!/^\d{8}$/.test(number)) {
+    return sendJson(res, 400, { error: "Card number must be exactly 8 digits" });
+  }
+
+  try {
+    const card = await withSchemaRetry(() =>
+      prisma.card.findUnique({
+        where: { number },
+        select: {
+          id: true,
+          holderName: true,
+          number: true,
+          userId: true,
+        },
+      }),
+    );
+
+    if (!card) {
+      return sendJson(res, 404, { error: "Card not found" });
+    }
+
+    return sendJson(res, 200, {
+      card: {
+        id: card.id,
+        number: card.number,
+        holderName: card.holderName,
+        isOwnCard: card.userId === userId,
+      },
+    });
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2021") {
+      return sendJson(res, 500, {
+        error: "Card table not found in DB. Run DB migration for Card model.",
+      });
+    }
+    console.error(err);
+    return sendJson(res, 500, { error: "Could not lookup card" });
   }
 });
 
@@ -165,12 +262,11 @@ router.post("/me/cards/transfer", async (req, res) => {
         if (!fromCard) {
           throw new Error("From card not found");
         }
-        const toCard = await tx.card.findFirst({
+        const toCard = await tx.card.findUnique({
           where: {
-            userId,
             number: toNumber,
           },
-          select: { id: true, holderName: true },
+          select: { id: true, holderName: true, userId: true },
         });
         if (!toCard) {
           throw new Error("To card not found");
@@ -188,6 +284,14 @@ router.post("/me/cards/transfer", async (req, res) => {
         });
         await tx.card.update({
           where: { id: toCard.id },
+          data: { balanceUsdCents: { increment: amountCents } },
+        });
+        await tx.user.update({
+          where: { id: userId },
+          data: { balanceUsdCents: { decrement: amountCents } },
+        });
+        await tx.user.update({
+          where: { id: toCard.userId },
           data: { balanceUsdCents: { increment: amountCents } },
         });
 
