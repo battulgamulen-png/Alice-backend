@@ -12,11 +12,21 @@ const health_1 = __importDefault(require("./routes/health"));
 const me_1 = __importDefault(require("./routes/me"));
 const prisma_1 = require("./prisma");
 const app = (0, express_1.default)();
-const allowedOrigins = process.env.CORS_ORIGIN
+const configuredOrigins = process.env.CORS_ORIGIN
     ? process.env.CORS_ORIGIN.split(",").map((s) => s.trim())
     : ["http://localhost:3000"];
 app.use((0, cors_1.default)({
-    origin: allowedOrigins,
+    origin: (origin, callback) => {
+        if (!origin)
+            return callback(null, true);
+        const isConfigured = configuredOrigins.includes(origin);
+        const isLocalhost = origin === "http://localhost:3000" || origin === "http://127.0.0.1:3000";
+        const isVercel = origin.endsWith(".vercel.app");
+        if (isConfigured || isLocalhost || isVercel) {
+            return callback(null, true);
+        }
+        return callback(new Error("Not allowed by CORS"));
+    },
     credentials: true,
     allowedHeaders: ["Content-Type", "Authorization"],
     methods: ["GET", "POST", "OPTIONS"],
