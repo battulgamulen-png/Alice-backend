@@ -11,6 +11,49 @@ const auth_1 = require("../auth");
 const http_1 = require("../http");
 const router = (0, express_1.Router)();
 const normalizeCardNumber = (value) => value.replace(/\D/g, "");
+router.get("/auth/signup/check", async (req, res) => {
+    const email = typeof req.query.email === "string" ? req.query.email.trim() : "";
+    const cardNumberRaw = typeof req.query.cardNumber === "string" ? req.query.cardNumber : "";
+    const cardNumber = normalizeCardNumber(cardNumberRaw);
+    if (!email && !cardNumber) {
+        return (0, http_1.sendJson)(res, 400, { error: "Provide email or cardNumber" });
+    }
+    if (email && !auth_1.emailRegex.test(email)) {
+        return (0, http_1.sendJson)(res, 400, { error: "Invalid email" });
+    }
+    if (cardNumber && !/^\d{8}$/.test(cardNumber)) {
+        return (0, http_1.sendJson)(res, 400, { error: "Card number must be exactly 8 digits" });
+    }
+    try {
+        const [existingUser, existingCard] = await Promise.all([
+            email
+                ? prisma_1.prisma.user.findUnique({
+                    where: { email: email.toLowerCase() },
+                    select: { id: true },
+                })
+                : Promise.resolve(null),
+            cardNumber
+                ? prisma_1.prisma.card.findUnique({
+                    where: { number: cardNumber },
+                    select: { id: true },
+                })
+                : Promise.resolve(null),
+        ]);
+        return (0, http_1.sendJson)(res, 200, {
+            emailAvailable: email ? !existingUser : null,
+            cardNumberAvailable: cardNumber ? !existingCard : null,
+        });
+    }
+    catch (err) {
+        if (err instanceof client_1.Prisma.PrismaClientKnownRequestError && err.code === "P2021") {
+            return (0, http_1.sendJson)(res, 500, {
+                error: "Card table not found in DB. Run DB migration for Card model.",
+            });
+        }
+        console.error(err);
+        return (0, http_1.sendJson)(res, 500, { error: "Could not validate signup fields" });
+    }
+});
 router.post("/auth/signup", async (req, res) => {
     const { firstName, lastName, email, password, phone, cardNumber } = req.body;
     if (!firstName || !lastName || !email || !password || !cardNumber) {
