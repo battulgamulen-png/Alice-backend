@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { getBearerUserId } from "../auth";
-import { Prisma } from "../generated/prisma";
+import { Prisma } from "@prisma/client";
 import { ensureDatabaseSchema, prisma } from "../prisma";
 import { sendJson } from "../http";
 

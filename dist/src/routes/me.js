@@ -2,8 +2,8 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const auth_1 = require("../auth");
-const prisma_1 = require("../generated/prisma");
-const prisma_2 = require("../prisma");
+const client_1 = require("@prisma/client");
+const prisma_1 = require("../prisma");
 const http_1 = require("../http");
 const router = (0, express_1.Router)();
 const normalizeCardNumber = (value) => value.replace(/\D/g, "");
@@ -12,8 +12,8 @@ async function withSchemaRetry(operation) {
         return await operation();
     }
     catch (err) {
-        if (err instanceof prisma_1.Prisma.PrismaClientKnownRequestError && err.code === "P2021") {
-            await (0, prisma_2.ensureDatabaseSchema)();
+        if (err instanceof client_1.Prisma.PrismaClientKnownRequestError && err.code === "P2021") {
+            await (0, prisma_1.ensureDatabaseSchema)();
             return operation();
         }
         throw err;
@@ -24,7 +24,7 @@ router.get("/me", async (req, res) => {
     if (!userId) {
         return (0, http_1.sendJson)(res, 401, { error: "Unauthorized" });
     }
-    const user = await prisma_2.prisma.user.findUnique({
+    const user = await prisma_1.prisma.user.findUnique({
         where: { id: userId },
         select: {
             id: true,
@@ -46,7 +46,7 @@ router.get("/me/cards", async (req, res) => {
         return (0, http_1.sendJson)(res, 401, { error: "Unauthorized" });
     }
     try {
-        const cards = await withSchemaRetry(() => prisma_2.prisma.card.findMany({
+        const cards = await withSchemaRetry(() => prisma_1.prisma.card.findMany({
             where: { userId },
             orderBy: { createdAt: "asc" },
             select: {
@@ -59,7 +59,7 @@ router.get("/me/cards", async (req, res) => {
         return (0, http_1.sendJson)(res, 200, { cards });
     }
     catch (err) {
-        if (err instanceof prisma_1.Prisma.PrismaClientKnownRequestError && err.code === "P2021") {
+        if (err instanceof client_1.Prisma.PrismaClientKnownRequestError && err.code === "P2021") {
             return (0, http_1.sendJson)(res, 500, {
                 error: "Card table not found in DB. Run DB migration for Card model.",
             });
@@ -82,7 +82,7 @@ router.post("/me/cards", async (req, res) => {
         return (0, http_1.sendJson)(res, 400, { error: "Card number must be exactly 8 digits" });
     }
     try {
-        const card = await withSchemaRetry(() => prisma_2.prisma.card.create({
+        const card = await withSchemaRetry(() => prisma_1.prisma.card.create({
             data: {
                 userId,
                 holderName: holderName.trim(),
@@ -98,10 +98,10 @@ router.post("/me/cards", async (req, res) => {
         return (0, http_1.sendJson)(res, 201, { card });
     }
     catch (err) {
-        if (err instanceof prisma_1.Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+        if (err instanceof client_1.Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
             return (0, http_1.sendJson)(res, 409, { error: "Card number already exists" });
         }
-        if (err instanceof prisma_1.Prisma.PrismaClientKnownRequestError && err.code === "P2021") {
+        if (err instanceof client_1.Prisma.PrismaClientKnownRequestError && err.code === "P2021") {
             return (0, http_1.sendJson)(res, 500, {
                 error: "Card table not found in DB. Run DB migration for Card model.",
             });
@@ -135,7 +135,7 @@ router.post("/me/cards/transfer", async (req, res) => {
         return (0, http_1.sendJson)(res, 400, { error: "Invalid amount" });
     }
     try {
-        const result = await withSchemaRetry(() => prisma_2.prisma.$transaction(async (tx) => {
+        const result = await withSchemaRetry(() => prisma_1.prisma.$transaction(async (tx) => {
             const fromCard = await tx.card.findFirst({
                 where: { userId, number: fromNumber },
                 select: { id: true, balanceUsdCents: true },
@@ -179,7 +179,7 @@ router.post("/me/cards/transfer", async (req, res) => {
             });
             return { cards, fromCardId: fromCard.id, toCardId: toCard.id };
         }));
-        await withSchemaRetry(() => prisma_2.prisma.cardTransfer.create({
+        await withSchemaRetry(() => prisma_1.prisma.cardTransfer.create({
             data: {
                 userId,
                 fromCardId: result.fromCardId,
@@ -190,7 +190,7 @@ router.post("/me/cards/transfer", async (req, res) => {
         return (0, http_1.sendJson)(res, 200, { cards: result.cards });
     }
     catch (err) {
-        if (err instanceof prisma_1.Prisma.PrismaClientKnownRequestError && err.code === "P2021") {
+        if (err instanceof client_1.Prisma.PrismaClientKnownRequestError && err.code === "P2021") {
             return (0, http_1.sendJson)(res, 500, {
                 error: "Card table not found in DB. Run DB migration for Card model.",
             });
@@ -212,7 +212,7 @@ router.get("/me/transactions", async (req, res) => {
         return (0, http_1.sendJson)(res, 401, { error: "Unauthorized" });
     }
     try {
-        const transactions = await withSchemaRetry(() => prisma_2.prisma.cardTransfer.findMany({
+        const transactions = await withSchemaRetry(() => prisma_1.prisma.cardTransfer.findMany({
             where: { userId },
             orderBy: { createdAt: "desc" },
             take: 100,
@@ -239,7 +239,7 @@ router.get("/me/transactions", async (req, res) => {
         return (0, http_1.sendJson)(res, 200, { transactions });
     }
     catch (err) {
-        if (err instanceof prisma_1.Prisma.PrismaClientKnownRequestError && err.code === "P2021") {
+        if (err instanceof client_1.Prisma.PrismaClientKnownRequestError && err.code === "P2021") {
             return (0, http_1.sendJson)(res, 500, {
                 error: "CardTransfer table not found in DB. Run DB migration for CardTransfer model.",
             });

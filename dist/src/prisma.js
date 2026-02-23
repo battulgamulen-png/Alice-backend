@@ -3,12 +3,12 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.prisma = void 0;
 exports.ensureDatabaseSchema = ensureDatabaseSchema;
 require("dotenv/config");
-const prisma_1 = require("./generated/prisma");
+const client_1 = require("@prisma/client");
 const adapter_neon_1 = require("@prisma/adapter-neon");
 const adapter = new adapter_neon_1.PrismaNeon({
     connectionString: process.env.DATABASE_URL,
 });
-exports.prisma = new prisma_1.PrismaClient({ adapter });
+exports.prisma = new client_1.PrismaClient({ adapter });
 async function ensureDatabaseSchema() {
     await exports.prisma.$executeRawUnsafe(`
     ALTER TABLE "User"

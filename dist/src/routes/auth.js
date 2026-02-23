@@ -5,8 +5,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
-const prisma_1 = require("../generated/prisma");
-const prisma_2 = require("../prisma");
+const client_1 = require("@prisma/client");
+const prisma_1 = require("../prisma");
 const auth_1 = require("../auth");
 const http_1 = require("../http");
 const router = (0, express_1.Router)();
@@ -30,7 +30,7 @@ router.post("/auth/signup", async (req, res) => {
     }
     try {
         const passwordHash = await bcryptjs_1.default.hash(password, 10);
-        const user = await prisma_2.prisma.$transaction(async (tx) => {
+        const user = await prisma_1.prisma.$transaction(async (tx) => {
             const created = await tx.user.create({
                 data: {
                     firstName,
@@ -63,7 +63,7 @@ router.post("/auth/signup", async (req, res) => {
         return (0, http_1.sendJson)(res, 201, { user, token });
     }
     catch (err) {
-        if (err instanceof prisma_1.Prisma.PrismaClientKnownRequestError) {
+        if (err instanceof client_1.Prisma.PrismaClientKnownRequestError) {
             if (err.code === "P2002") {
                 const target = Array.isArray(err.meta?.target) ? err.meta?.target.join(",") : "";
                 if (target.includes("email")) {
@@ -84,7 +84,7 @@ router.post("/auth/login", async (req, res) => {
     if (!email || !password) {
         return (0, http_1.sendJson)(res, 400, { error: "Missing email or password" });
     }
-    const user = await prisma_2.prisma.user.findUnique({
+    const user = await prisma_1.prisma.user.findUnique({
         where: { email: email.toLowerCase() },
         select: {
             id: true,
@@ -120,7 +120,7 @@ router.post("/auth/forgot-password", async (req, res) => {
             error: "Password must be at least 6 characters",
         });
     }
-    const user = await prisma_2.prisma.user.findUnique({
+    const user = await prisma_1.prisma.user.findUnique({
         where: { email: email.toLowerCase() },
         select: { id: true, phone: true },
     });
@@ -128,7 +128,7 @@ router.post("/auth/forgot-password", async (req, res) => {
         return (0, http_1.sendJson)(res, 401, { error: "Email or phone does not match" });
     }
     const passwordHash = await bcryptjs_1.default.hash(newPassword, 10);
-    await prisma_2.prisma.user.update({
+    await prisma_1.prisma.user.update({
         where: { id: user.id },
         data: { passwordHash },
     });
