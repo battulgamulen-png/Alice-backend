@@ -5,6 +5,7 @@ import { jsonErrorHandler, sendJson } from "./http";
 import authRouter from "./routes/auth";
 import healthRouter from "./routes/health";
 import meRouter from "./routes/me";
+import { ensureDatabaseSchema } from "./prisma";
 
 const app = express();
 const allowedOrigins = process.env.CORS_ORIGIN
@@ -31,6 +32,15 @@ app.use((_req, res) => {
 });
 
 const port = Number(process.env.PORT || 4000);
-app.listen(port, () => {
-  console.log(`API listening on http://localhost:${port}`);
+
+async function start() {
+  await ensureDatabaseSchema();
+  app.listen(port, () => {
+    console.log(`API listening on http://localhost:${port}`);
+  });
+}
+
+start().catch((err) => {
+  console.error("Failed to start server:", err);
+  process.exit(1);
 });

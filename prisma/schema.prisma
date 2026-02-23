@@ -24,6 +24,42 @@ model User {
   firstName    String
   lastName     String
   phone        String?
+  balanceUsdCents Int   @default(100000)
+  cards        Card[]
+  cardTransfers CardTransfer[]
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+}
+
+model Card {
+  id              String   @id @default(cuid())
+  userId          String
+  holderName      String
+  number          String   @unique
+  balanceUsdCents Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sentTransfers CardTransfer[] @relation("SentCardTransfers")
+  receivedTransfers CardTransfer[] @relation("ReceivedCardTransfers")
+
+  @@index([userId])
+}
+
+model CardTransfer {
+  id             String   @id @default(cuid())
+  userId         String
+  fromCardId     String
+  toCardId       String
+  amountUsdCents Int
+  createdAt      DateTime @default(now())
+
+  user     User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fromCard Card @relation("SentCardTransfers", fields: [fromCardId], references: [id], onDelete: Cascade)
+  toCard   Card @relation("ReceivedCardTransfers", fields: [toCardId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([fromCardId, createdAt])
+  @@index([toCardId, createdAt])
 }
