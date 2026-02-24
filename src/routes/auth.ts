@@ -10,7 +10,8 @@ const router = Router();
 const normalizeCardNumber = (value: string) => value.replace(/\D/g, "");
 
 router.get("/auth/signup/check", async (req, res) => {
-  const email = typeof req.query.email === "string" ? req.query.email.trim() : "";
+  const email =
+    typeof req.query.email === "string" ? req.query.email.trim() : "";
   const cardNumberRaw =
     typeof req.query.cardNumber === "string" ? req.query.cardNumber : "";
   const cardNumber = normalizeCardNumber(cardNumberRaw);
@@ -23,7 +24,9 @@ router.get("/auth/signup/check", async (req, res) => {
     return sendJson(res, 400, { error: "Invalid email" });
   }
   if (cardNumber && !/^\d{8}$/.test(cardNumber)) {
-    return sendJson(res, 400, { error: "Card number must be exactly 8 digits" });
+    return sendJson(res, 400, {
+      error: "Card number must be exactly 8 digits",
+    });
   }
 
   try {
@@ -47,7 +50,10 @@ router.get("/auth/signup/check", async (req, res) => {
       cardNumberAvailable: cardNumber ? !existingCard : null,
     });
   } catch (err) {
-    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2021") {
+    if (
+      err instanceof Prisma.PrismaClientKnownRequestError &&
+      err.code === "P2021"
+    ) {
       return sendJson(res, 500, {
         error: "Card table not found in DB. Run DB migration for Card model.",
       });
@@ -58,14 +64,15 @@ router.get("/auth/signup/check", async (req, res) => {
 });
 
 router.post("/auth/signup", async (req, res) => {
-  const { firstName, lastName, email, password, phone, cardNumber } = req.body as {
-    firstName?: string;
-    lastName?: string;
-    email?: string;
-    password?: string;
-    phone?: string;
-    cardNumber?: string;
-  };
+  const { firstName, lastName, email, password, phone, cardNumber } =
+    req.body as {
+      firstName?: string;
+      lastName?: string;
+      email?: string;
+      password?: string;
+      phone?: string;
+      cardNumber?: string;
+    };
 
   if (!firstName || !lastName || !email || !password || !cardNumber) {
     return sendJson(res, 400, { error: "Missing required fields" });
@@ -80,7 +87,9 @@ router.post("/auth/signup", async (req, res) => {
   }
   const normalizedCardNumber = normalizeCardNumber(cardNumber);
   if (!/^\d{8}$/.test(normalizedCardNumber)) {
-    return sendJson(res, 400, { error: "Card number must be exactly 8 digits" });
+    return sendJson(res, 400, {
+      error: "Card number must be exactly 8 digits",
+    });
   }
 
   try {
@@ -93,7 +102,7 @@ router.post("/auth/signup", async (req, res) => {
           email: email.toLowerCase(),
           passwordHash,
           phone,
-          avatarUrl: "/mulenpic.PNG",
+          avatarUrl: "/userzurag.jpg",
           balanceUsdCents: 100000,
         },
         select: {
@@ -124,7 +133,9 @@ router.post("/auth/signup", async (req, res) => {
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError) {
       if (err.code === "P2002") {
-        const target = Array.isArray(err.meta?.target) ? err.meta?.target.join(",") : "";
+        const target = Array.isArray(err.meta?.target)
+          ? err.meta?.target.join(",")
+          : "";
         if (target.includes("email")) {
           return sendJson(res, 409, { error: "Email already exists" });
         }
@@ -182,7 +193,9 @@ router.post("/auth/forgot-password", async (req, res) => {
   };
 
   if (!email || !phone || !newPassword) {
-    return sendJson(res, 400, { error: "Missing email, phone, or new password" });
+    return sendJson(res, 400, {
+      error: "Missing email, phone, or new password",
+    });
   }
   if (!emailRegex.test(email)) {
     return sendJson(res, 400, { error: "Invalid email" });
