@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { emailRegex, getBearerUserId } from "../auth";
 import { Prisma } from "@prisma/client";
+import bcrypt from "bcryptjs";
 import { ensureDatabaseSchema, prisma } from "../prisma";
 import { sendJson } from "../http";
 
@@ -11,6 +12,10 @@ const normalizeCurrency = (value?: string) => {
   const upper = (value || "").trim().toUpperCase();
   if (upper === "USD" || upper === "EUR") return upper;
   return "MNT";
+};
+const normalizeLanguage = (value?: string) => {
+  const upper = (value || "").trim().toUpperCase();
+  return upper === "EN" ? "EN" : "MN";
 };
 
 async function withSchemaRetry<T>(operation: () => Promise<T>): Promise<T> {
@@ -50,6 +55,10 @@ router.get("/me", async (req, res) => {
       preferredCurrency: true,
       marketingOptIn: true,
       twoFactorEnabled: true,
+      language: true,
+      loginAlerts: true,
+      emailNotifications: true,
+      smsNotifications: true,
       balanceUsdCents: true,
     },
   });
@@ -81,6 +90,10 @@ router.put("/me/profile", async (req, res) => {
     preferredCurrency,
     marketingOptIn,
     twoFactorEnabled,
+    language,
+    loginAlerts,
+    emailNotifications,
+    smsNotifications,
   } = req.body as {
     firstName?: string;
     lastName?: string;
@@ -97,6 +110,10 @@ router.put("/me/profile", async (req, res) => {
     preferredCurrency?: string;
     marketingOptIn?: boolean;
     twoFactorEnabled?: boolean;
+    language?: string;
+    loginAlerts?: boolean;
+    emailNotifications?: boolean;
+    smsNotifications?: boolean;
   };
 
   if (!firstName || !firstName.trim() || !lastName || !lastName.trim() || !email) {
@@ -117,16 +134,30 @@ router.put("/me/profile", async (req, res) => {
         avatarUrl: avatarUrl?.trim() || null,
         nationalId: nationalId?.trim() || null,
         kycStatus:
-          kycStatus === "Verified" || kycStatus === "Not Verified" ? kycStatus : "Pending",
+          typeof kycStatus === "string"
+            ? kycStatus === "Verified" || kycStatus === "Not Verified"
+              ? kycStatus
+              : "Pending"
+            : undefined,
         addressLine1: addressLine1?.trim() || null,
         addressLine2: addressLine2?.trim() || null,
         city: city?.trim() || null,
         country: country?.trim() || null,
         postalCode: postalCode?.trim() || null,
-        preferredCurrency: normalizeCurrency(preferredCurrency),
-        marketingOptIn: Boolean(marketingOptIn),
+        preferredCurrency:
+          typeof preferredCurrency === "string"
+            ? normalizeCurrency(preferredCurrency)
+            : undefined,
+        marketingOptIn:
+          typeof marketingOptIn === "boolean" ? marketingOptIn : undefined,
         twoFactorEnabled:
-          typeof twoFactorEnabled === "boolean" ? twoFactorEnabled : true,
+          typeof twoFactorEnabled === "boolean" ? twoFactorEnabled : undefined,
+        language: typeof language === "string" ? normalizeLanguage(language) : undefined,
+        loginAlerts: typeof loginAlerts === "boolean" ? loginAlerts : undefined,
+        emailNotifications:
+          typeof emailNotifications === "boolean" ? emailNotifications : undefined,
+        smsNotifications:
+          typeof smsNotifications === "boolean" ? smsNotifications : undefined,
       },
       select: {
         id: true,
@@ -145,6 +176,10 @@ router.put("/me/profile", async (req, res) => {
         preferredCurrency: true,
         marketingOptIn: true,
         twoFactorEnabled: true,
+        language: true,
+        loginAlerts: true,
+        emailNotifications: true,
+        smsNotifications: true,
         balanceUsdCents: true,
       },
     });
@@ -157,6 +192,75 @@ router.put("/me/profile", async (req, res) => {
     console.error(err);
     return sendJson(res, 500, { error: "Could not update profile" });
   }
+});
+
+router.put("/me/password", async (req, res) => {
+  const userId = getBearerUserId(req);
+  if (!userId) {
+    return sendJson(res, 401, { error: "Unauthorized" });
+  }
+
+  const { currentPassword, newPassword } = req.body as {
+    currentPassword?: string;
+    newPassword?: string;
+  };
+  if (!currentPassword || !newPassword) {
+    return sendJson(res, 400, { error: "currentPassword and newPassword are required" });
+  }
+  if (newPassword.length < 6) {
+    return sendJson(res, 400, { error: "Password must be at least 6 characters" });
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, passwordHash: true },
+  });
+  if (!user) {
+    return sendJson(res, 404, { error: "User not found" });
+  }
+  const ok = await bcrypt.compare(currentPassword, user.passwordHash);
+  if (!ok) {
+    return sendJson(res, 401, { error: "Current password is incorrect" });
+  }
+
+  const passwordHash = await bcrypt.hash(newPassword, 10);
+  await prisma.user.update({
+    where: { id: userId },
+    data: { passwordHash },
+  });
+  return sendJson(res, 200, { message: "Password updated successfully" });
+});
+
+router.delete("/me", async (req, res) => {
+  const userId = getBearerUserId(req);
+  if (!userId) {
+    return sendJson(res, 401, { error: "Unauthorized" });
+  }
+  await prisma.$transaction(async (tx) => {
+    const cards = await tx.card.findMany({
+      where: { userId },
+      select: { id: true },
+    });
+    const cardIds = cards.map((c) => c.id);
+
+    if (cardIds.length > 0) {
+      await tx.cardTransfer.deleteMany({
+        where: {
+          OR: [
+            { userId },
+            { fromCardId: { in: cardIds } },
+            { toCardId: { in: cardIds } },
+          ],
+        },
+      });
+    } else {
+      await tx.cardTransfer.deleteMany({ where: { userId } });
+    }
+
+    await tx.card.deleteMany({ where: { userId } });
+    await tx.user.delete({ where: { id: userId } });
+  });
+  return sendJson(res, 200, { message: "Account deleted" });
 });
 
 router.get("/me/cards", async (req, res) => {

@@ -122,6 +122,74 @@ export async function ensureDatabaseSchema() {
     ALTER TABLE "User"
     ALTER COLUMN "twoFactorEnabled" SET NOT NULL
   `);
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "User"
+    ADD COLUMN IF NOT EXISTS "language" TEXT
+  `);
+  await prisma.$executeRawUnsafe(`
+    UPDATE "User"
+    SET "language" = 'MN'
+    WHERE "language" IS NULL
+  `);
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "User"
+    ALTER COLUMN "language" SET DEFAULT 'MN'
+  `);
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "User"
+    ALTER COLUMN "language" SET NOT NULL
+  `);
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "User"
+    ADD COLUMN IF NOT EXISTS "loginAlerts" BOOLEAN
+  `);
+  await prisma.$executeRawUnsafe(`
+    UPDATE "User"
+    SET "loginAlerts" = TRUE
+    WHERE "loginAlerts" IS NULL
+  `);
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "User"
+    ALTER COLUMN "loginAlerts" SET DEFAULT TRUE
+  `);
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "User"
+    ALTER COLUMN "loginAlerts" SET NOT NULL
+  `);
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "User"
+    ADD COLUMN IF NOT EXISTS "emailNotifications" BOOLEAN
+  `);
+  await prisma.$executeRawUnsafe(`
+    UPDATE "User"
+    SET "emailNotifications" = TRUE
+    WHERE "emailNotifications" IS NULL
+  `);
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "User"
+    ALTER COLUMN "emailNotifications" SET DEFAULT TRUE
+  `);
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "User"
+    ALTER COLUMN "emailNotifications" SET NOT NULL
+  `);
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "User"
+    ADD COLUMN IF NOT EXISTS "smsNotifications" BOOLEAN
+  `);
+  await prisma.$executeRawUnsafe(`
+    UPDATE "User"
+    SET "smsNotifications" = FALSE
+    WHERE "smsNotifications" IS NULL
+  `);
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "User"
+    ALTER COLUMN "smsNotifications" SET DEFAULT FALSE
+  `);
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "User"
+    ALTER COLUMN "smsNotifications" SET NOT NULL
+  `);
 
   await prisma.$executeRawUnsafe(`
     CREATE TABLE IF NOT EXISTS "Card" (

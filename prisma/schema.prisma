@@ -34,6 +34,10 @@ model User {
   preferredCurrency String @default("MNT")
   marketingOptIn Boolean @default(false)
   twoFactorEnabled Boolean @default(true)
+  language     String   @default("MN")
+  loginAlerts  Boolean  @default(true)
+  emailNotifications Boolean @default(true)
+  smsNotifications Boolean @default(false)
   balanceUsdCents Int   @default(100000)
   cards        Card[]
   cardTransfers CardTransfer[]

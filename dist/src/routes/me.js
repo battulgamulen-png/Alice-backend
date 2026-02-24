@@ -1,8 +1,12 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const auth_1 = require("../auth");
 const client_1 = require("@prisma/client");
+const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const prisma_1 = require("../prisma");
 const http_1 = require("../http");
 const router = (0, express_1.Router)();
@@ -12,6 +16,10 @@ const normalizeCurrency = (value) => {
     if (upper === "USD" || upper === "EUR")
         return upper;
     return "MNT";
+};
+const normalizeLanguage = (value) => {
+    const upper = (value || "").trim().toUpperCase();
+    return upper === "EN" ? "EN" : "MN";
 };
 async function withSchemaRetry(operation) {
     try {
@@ -49,6 +57,10 @@ router.get("/me", async (req, res) => {
             preferredCurrency: true,
             marketingOptIn: true,
             twoFactorEnabled: true,
+            language: true,
+            loginAlerts: true,
+            emailNotifications: true,
+            smsNotifications: true,
             balanceUsdCents: true,
         },
     });
@@ -62,7 +74,7 @@ router.put("/me/profile", async (req, res) => {
     if (!userId) {
         return (0, http_1.sendJson)(res, 401, { error: "Unauthorized" });
     }
-    const { firstName, lastName, email, phone, avatarUrl, nationalId, kycStatus, addressLine1, addressLine2, city, country, postalCode, preferredCurrency, marketingOptIn, twoFactorEnabled, } = req.body;
+    const { firstName, lastName, email, phone, avatarUrl, nationalId, kycStatus, addressLine1, addressLine2, city, country, postalCode, preferredCurrency, marketingOptIn, twoFactorEnabled, language, loginAlerts, emailNotifications, smsNotifications, } = req.body;
     if (!firstName || !firstName.trim() || !lastName || !lastName.trim() || !email) {
         return (0, http_1.sendJson)(res, 400, { error: "firstName, lastName and email are required" });
     }
@@ -79,15 +91,25 @@ router.put("/me/profile", async (req, res) => {
                 phone: phone?.trim() || null,
                 avatarUrl: avatarUrl?.trim() || null,
                 nationalId: nationalId?.trim() || null,
-                kycStatus: kycStatus === "Verified" || kycStatus === "Not Verified" ? kycStatus : "Pending",
+                kycStatus: typeof kycStatus === "string"
+                    ? kycStatus === "Verified" || kycStatus === "Not Verified"
+                        ? kycStatus
+                        : "Pending"
+                    : undefined,
                 addressLine1: addressLine1?.trim() || null,
                 addressLine2: addressLine2?.trim() || null,
                 city: city?.trim() || null,
                 country: country?.trim() || null,
                 postalCode: postalCode?.trim() || null,
-                preferredCurrency: normalizeCurrency(preferredCurrency),
-                marketingOptIn: Boolean(marketingOptIn),
-                twoFactorEnabled: typeof twoFactorEnabled === "boolean" ? twoFactorEnabled : true,
+                preferredCurrency: typeof preferredCurrency === "string"
+                    ? normalizeCurrency(preferredCurrency)
+                    : undefined,
+                marketingOptIn: typeof marketingOptIn === "boolean" ? marketingOptIn : undefined,
+                twoFactorEnabled: typeof twoFactorEnabled === "boolean" ? twoFactorEnabled : undefined,
+                language: typeof language === "string" ? normalizeLanguage(language) : undefined,
+                loginAlerts: typeof loginAlerts === "boolean" ? loginAlerts : undefined,
+                emailNotifications: typeof emailNotifications === "boolean" ? emailNotifications : undefined,
+                smsNotifications: typeof smsNotifications === "boolean" ? smsNotifications : undefined,
             },
             select: {
                 id: true,
@@ -106,6 +128,10 @@ router.put("/me/profile", async (req, res) => {
                 preferredCurrency: true,
                 marketingOptIn: true,
                 twoFactorEnabled: true,
+                language: true,
+                loginAlerts: true,
+                emailNotifications: true,
+                smsNotifications: true,
                 balanceUsdCents: true,
             },
         });
@@ -118,6 +144,66 @@ router.put("/me/profile", async (req, res) => {
         console.error(err);
         return (0, http_1.sendJson)(res, 500, { error: "Could not update profile" });
     }
+});
+router.put("/me/password", async (req, res) => {
+    const userId = (0, auth_1.getBearerUserId)(req);
+    if (!userId) {
+        return (0, http_1.sendJson)(res, 401, { error: "Unauthorized" });
+    }
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword) {
+        return (0, http_1.sendJson)(res, 400, { error: "currentPassword and newPassword are required" });
+    }
+    if (newPassword.length < 6) {
+        return (0, http_1.sendJson)(res, 400, { error: "Password must be at least 6 characters" });
+    }
+    const user = await prisma_1.prisma.user.findUnique({
+        where: { id: userId },
+        select: { id: true, passwordHash: true },
+    });
+    if (!user) {
+        return (0, http_1.sendJson)(res, 404, { error: "User not found" });
+    }
+    const ok = await bcryptjs_1.default.compare(currentPassword, user.passwordHash);
+    if (!ok) {
+        return (0, http_1.sendJson)(res, 401, { error: "Current password is incorrect" });
+    }
+    const passwordHash = await bcryptjs_1.default.hash(newPassword, 10);
+    await prisma_1.prisma.user.update({
+        where: { id: userId },
+        data: { passwordHash },
+    });
+    return (0, http_1.sendJson)(res, 200, { message: "Password updated successfully" });
+});
+router.delete("/me", async (req, res) => {
+    const userId = (0, auth_1.getBearerUserId)(req);
+    if (!userId) {
+        return (0, http_1.sendJson)(res, 401, { error: "Unauthorized" });
+    }
+    await prisma_1.prisma.$transaction(async (tx) => {
+        const cards = await tx.card.findMany({
+            where: { userId },
+            select: { id: true },
+        });
+        const cardIds = cards.map((c) => c.id);
+        if (cardIds.length > 0) {
+            await tx.cardTransfer.deleteMany({
+                where: {
+                    OR: [
+                        { userId },
+                        { fromCardId: { in: cardIds } },
+                        { toCardId: { in: cardIds } },
+                    ],
+                },
+            });
+        }
+        else {
+            await tx.cardTransfer.deleteMany({ where: { userId } });
+        }
+        await tx.card.deleteMany({ where: { userId } });
+        await tx.user.delete({ where: { id: userId } });
+    });
+    return (0, http_1.sendJson)(res, 200, { message: "Account deleted" });
 });
 router.get("/me/cards", async (req, res) => {
     const userId = (0, auth_1.getBearerUserId)(req);
