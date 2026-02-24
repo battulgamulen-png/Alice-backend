@@ -29,9 +29,9 @@ app.use((0, cors_1.default)({
     },
     credentials: true,
     allowedHeaders: ["Content-Type", "Authorization"],
-    methods: ["GET", "POST", "OPTIONS"],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
 }));
-app.use(express_1.default.json());
+app.use(express_1.default.json({ limit: "5mb" }));
 app.use(http_1.jsonErrorHandler);
 app.use(health_1.default);
 app.use(auth_1.default);

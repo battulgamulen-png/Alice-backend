@@ -23,6 +23,17 @@ model User {
   firstName    String
   lastName     String
   phone        String?
+  avatarUrl    String?
+  nationalId   String?
+  kycStatus    String   @default("Pending")
+  addressLine1 String?
+  addressLine2 String?
+  city         String?
+  country      String?
+  postalCode   String?
+  preferredCurrency String @default("MNT")
+  marketingOptIn Boolean @default(false)
+  twoFactorEnabled Boolean @default(true)
   balanceUsdCents Int   @default(100000)
   cards        Card[]
   cardTransfers CardTransfer[]

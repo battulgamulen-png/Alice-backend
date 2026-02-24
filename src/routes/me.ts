@@ -7,6 +7,11 @@ import { sendJson } from "../http";
 const router = Router();
 
 const normalizeCardNumber = (value: string) => value.replace(/\D/g, "");
+const normalizeCurrency = (value?: string) => {
+  const upper = (value || "").trim().toUpperCase();
+  if (upper === "USD" || upper === "EUR") return upper;
+  return "MNT";
+};
 
 async function withSchemaRetry<T>(operation: () => Promise<T>): Promise<T> {
   try {
@@ -34,6 +39,17 @@ router.get("/me", async (req, res) => {
       firstName: true,
       lastName: true,
       phone: true,
+      avatarUrl: true,
+      nationalId: true,
+      kycStatus: true,
+      addressLine1: true,
+      addressLine2: true,
+      city: true,
+      country: true,
+      postalCode: true,
+      preferredCurrency: true,
+      marketingOptIn: true,
+      twoFactorEnabled: true,
       balanceUsdCents: true,
     },
   });
@@ -49,11 +65,38 @@ router.put("/me/profile", async (req, res) => {
     return sendJson(res, 401, { error: "Unauthorized" });
   }
 
-  const { firstName, lastName, email, phone } = req.body as {
+  const {
+    firstName,
+    lastName,
+    email,
+    phone,
+    avatarUrl,
+    nationalId,
+    kycStatus,
+    addressLine1,
+    addressLine2,
+    city,
+    country,
+    postalCode,
+    preferredCurrency,
+    marketingOptIn,
+    twoFactorEnabled,
+  } = req.body as {
     firstName?: string;
     lastName?: string;
     email?: string;
     phone?: string;
+    avatarUrl?: string;
+    nationalId?: string;
+    kycStatus?: string;
+    addressLine1?: string;
+    addressLine2?: string;
+    city?: string;
+    country?: string;
+    postalCode?: string;
+    preferredCurrency?: string;
+    marketingOptIn?: boolean;
+    twoFactorEnabled?: boolean;
   };
 
   if (!firstName || !firstName.trim() || !lastName || !lastName.trim() || !email) {
@@ -71,6 +114,19 @@ router.put("/me/profile", async (req, res) => {
         lastName: lastName.trim(),
         email: email.trim().toLowerCase(),
         phone: phone?.trim() || null,
+        avatarUrl: avatarUrl?.trim() || null,
+        nationalId: nationalId?.trim() || null,
+        kycStatus:
+          kycStatus === "Verified" || kycStatus === "Not Verified" ? kycStatus : "Pending",
+        addressLine1: addressLine1?.trim() || null,
+        addressLine2: addressLine2?.trim() || null,
+        city: city?.trim() || null,
+        country: country?.trim() || null,
+        postalCode: postalCode?.trim() || null,
+        preferredCurrency: normalizeCurrency(preferredCurrency),
+        marketingOptIn: Boolean(marketingOptIn),
+        twoFactorEnabled:
+          typeof twoFactorEnabled === "boolean" ? twoFactorEnabled : true,
       },
       select: {
         id: true,
@@ -78,6 +134,17 @@ router.put("/me/profile", async (req, res) => {
         firstName: true,
         lastName: true,
         phone: true,
+        avatarUrl: true,
+        nationalId: true,
+        kycStatus: true,
+        addressLine1: true,
+        addressLine2: true,
+        city: true,
+        country: true,
+        postalCode: true,
+        preferredCurrency: true,
+        marketingOptIn: true,
+        twoFactorEnabled: true,
         balanceUsdCents: true,
       },
     });

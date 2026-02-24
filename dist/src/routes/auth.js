@@ -81,6 +81,7 @@ router.post("/auth/signup", async (req, res) => {
                     email: email.toLowerCase(),
                     passwordHash,
                     phone,
+                    avatarUrl: "/mulenpic.PNG",
                     balanceUsdCents: 100000,
                 },
                 select: {
@@ -89,6 +90,7 @@ router.post("/auth/signup", async (req, res) => {
                     firstName: true,
                     lastName: true,
                     phone: true,
+                    avatarUrl: true,
                     balanceUsdCents: true,
                 },
             });
@@ -135,6 +137,7 @@ router.post("/auth/login", async (req, res) => {
             firstName: true,
             lastName: true,
             phone: true,
+            avatarUrl: true,
             balanceUsdCents: true,
             passwordHash: true,
         },

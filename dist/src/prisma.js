@@ -28,6 +28,102 @@ async function ensureDatabaseSchema() {
     ALTER COLUMN "balanceUsdCents" SET NOT NULL
   `);
     await exports.prisma.$executeRawUnsafe(`
+    ALTER TABLE "User"
+    ADD COLUMN IF NOT EXISTS "avatarUrl" TEXT
+  `);
+    await exports.prisma.$executeRawUnsafe(`
+    ALTER TABLE "User"
+    ADD COLUMN IF NOT EXISTS "nationalId" TEXT
+  `);
+    await exports.prisma.$executeRawUnsafe(`
+    ALTER TABLE "User"
+    ADD COLUMN IF NOT EXISTS "kycStatus" TEXT
+  `);
+    await exports.prisma.$executeRawUnsafe(`
+    UPDATE "User"
+    SET "kycStatus" = 'Pending'
+    WHERE "kycStatus" IS NULL
+  `);
+    await exports.prisma.$executeRawUnsafe(`
+    ALTER TABLE "User"
+    ALTER COLUMN "kycStatus" SET DEFAULT 'Pending'
+  `);
+    await exports.prisma.$executeRawUnsafe(`
+    ALTER TABLE "User"
+    ALTER COLUMN "kycStatus" SET NOT NULL
+  `);
+    await exports.prisma.$executeRawUnsafe(`
+    ALTER TABLE "User"
+    ADD COLUMN IF NOT EXISTS "addressLine1" TEXT
+  `);
+    await exports.prisma.$executeRawUnsafe(`
+    ALTER TABLE "User"
+    ADD COLUMN IF NOT EXISTS "addressLine2" TEXT
+  `);
+    await exports.prisma.$executeRawUnsafe(`
+    ALTER TABLE "User"
+    ADD COLUMN IF NOT EXISTS "city" TEXT
+  `);
+    await exports.prisma.$executeRawUnsafe(`
+    ALTER TABLE "User"
+    ADD COLUMN IF NOT EXISTS "country" TEXT
+  `);
+    await exports.prisma.$executeRawUnsafe(`
+    ALTER TABLE "User"
+    ADD COLUMN IF NOT EXISTS "postalCode" TEXT
+  `);
+    await exports.prisma.$executeRawUnsafe(`
+    ALTER TABLE "User"
+    ADD COLUMN IF NOT EXISTS "preferredCurrency" TEXT
+  `);
+    await exports.prisma.$executeRawUnsafe(`
+    UPDATE "User"
+    SET "preferredCurrency" = 'MNT'
+    WHERE "preferredCurrency" IS NULL
+  `);
+    await exports.prisma.$executeRawUnsafe(`
+    ALTER TABLE "User"
+    ALTER COLUMN "preferredCurrency" SET DEFAULT 'MNT'
+  `);
+    await exports.prisma.$executeRawUnsafe(`
+    ALTER TABLE "User"
+    ALTER COLUMN "preferredCurrency" SET NOT NULL
+  `);
+    await exports.prisma.$executeRawUnsafe(`
+    ALTER TABLE "User"
+    ADD COLUMN IF NOT EXISTS "marketingOptIn" BOOLEAN
+  `);
+    await exports.prisma.$executeRawUnsafe(`
+    UPDATE "User"
+    SET "marketingOptIn" = FALSE
+    WHERE "marketingOptIn" IS NULL
+  `);
+    await exports.prisma.$executeRawUnsafe(`
+    ALTER TABLE "User"
+    ALTER COLUMN "marketingOptIn" SET DEFAULT FALSE
+  `);
+    await exports.prisma.$executeRawUnsafe(`
+    ALTER TABLE "User"
+    ALTER COLUMN "marketingOptIn" SET NOT NULL
+  `);
+    await exports.prisma.$executeRawUnsafe(`
+    ALTER TABLE "User"
+    ADD COLUMN IF NOT EXISTS "twoFactorEnabled" BOOLEAN
+  `);
+    await exports.prisma.$executeRawUnsafe(`
+    UPDATE "User"
+    SET "twoFactorEnabled" = TRUE
+    WHERE "twoFactorEnabled" IS NULL
+  `);
+    await exports.prisma.$executeRawUnsafe(`
+    ALTER TABLE "User"
+    ALTER COLUMN "twoFactorEnabled" SET DEFAULT TRUE
+  `);
+    await exports.prisma.$executeRawUnsafe(`
+    ALTER TABLE "User"
+    ALTER COLUMN "twoFactorEnabled" SET NOT NULL
+  `);
+    await exports.prisma.$executeRawUnsafe(`
     CREATE TABLE IF NOT EXISTS "Card" (
       "id" TEXT PRIMARY KEY,
       "userId" TEXT NOT NULL,

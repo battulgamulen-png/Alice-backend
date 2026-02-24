@@ -7,6 +7,12 @@ const prisma_1 = require("../prisma");
 const http_1 = require("../http");
 const router = (0, express_1.Router)();
 const normalizeCardNumber = (value) => value.replace(/\D/g, "");
+const normalizeCurrency = (value) => {
+    const upper = (value || "").trim().toUpperCase();
+    if (upper === "USD" || upper === "EUR")
+        return upper;
+    return "MNT";
+};
 async function withSchemaRetry(operation) {
     try {
         return await operation();
@@ -32,6 +38,17 @@ router.get("/me", async (req, res) => {
             firstName: true,
             lastName: true,
             phone: true,
+            avatarUrl: true,
+            nationalId: true,
+            kycStatus: true,
+            addressLine1: true,
+            addressLine2: true,
+            city: true,
+            country: true,
+            postalCode: true,
+            preferredCurrency: true,
+            marketingOptIn: true,
+            twoFactorEnabled: true,
             balanceUsdCents: true,
         },
     });
@@ -45,7 +62,7 @@ router.put("/me/profile", async (req, res) => {
     if (!userId) {
         return (0, http_1.sendJson)(res, 401, { error: "Unauthorized" });
     }
-    const { firstName, lastName, email, phone } = req.body;
+    const { firstName, lastName, email, phone, avatarUrl, nationalId, kycStatus, addressLine1, addressLine2, city, country, postalCode, preferredCurrency, marketingOptIn, twoFactorEnabled, } = req.body;
     if (!firstName || !firstName.trim() || !lastName || !lastName.trim() || !email) {
         return (0, http_1.sendJson)(res, 400, { error: "firstName, lastName and email are required" });
     }
@@ -60,6 +77,17 @@ router.put("/me/profile", async (req, res) => {
                 lastName: lastName.trim(),
                 email: email.trim().toLowerCase(),
                 phone: phone?.trim() || null,
+                avatarUrl: avatarUrl?.trim() || null,
+                nationalId: nationalId?.trim() || null,
+                kycStatus: kycStatus === "Verified" || kycStatus === "Not Verified" ? kycStatus : "Pending",
+                addressLine1: addressLine1?.trim() || null,
+                addressLine2: addressLine2?.trim() || null,
+                city: city?.trim() || null,
+                country: country?.trim() || null,
+                postalCode: postalCode?.trim() || null,
+                preferredCurrency: normalizeCurrency(preferredCurrency),
+                marketingOptIn: Boolean(marketingOptIn),
+                twoFactorEnabled: typeof twoFactorEnabled === "boolean" ? twoFactorEnabled : true,
             },
             select: {
                 id: true,
@@ -67,6 +95,17 @@ router.put("/me/profile", async (req, res) => {
                 firstName: true,
                 lastName: true,
                 phone: true,
+                avatarUrl: true,
+                nationalId: true,
+                kycStatus: true,
+                addressLine1: true,
+                addressLine2: true,
+                city: true,
+                country: true,
+                postalCode: true,
+                preferredCurrency: true,
+                marketingOptIn: true,
+                twoFactorEnabled: true,
                 balanceUsdCents: true,
             },
         });

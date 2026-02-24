@@ -26,6 +26,102 @@ export async function ensureDatabaseSchema() {
     ALTER TABLE "User"
     ALTER COLUMN "balanceUsdCents" SET NOT NULL
   `);
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "User"
+    ADD COLUMN IF NOT EXISTS "avatarUrl" TEXT
+  `);
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "User"
+    ADD COLUMN IF NOT EXISTS "nationalId" TEXT
+  `);
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "User"
+    ADD COLUMN IF NOT EXISTS "kycStatus" TEXT
+  `);
+  await prisma.$executeRawUnsafe(`
+    UPDATE "User"
+    SET "kycStatus" = 'Pending'
+    WHERE "kycStatus" IS NULL
+  `);
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "User"
+    ALTER COLUMN "kycStatus" SET DEFAULT 'Pending'
+  `);
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "User"
+    ALTER COLUMN "kycStatus" SET NOT NULL
+  `);
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "User"
+    ADD COLUMN IF NOT EXISTS "addressLine1" TEXT
+  `);
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "User"
+    ADD COLUMN IF NOT EXISTS "addressLine2" TEXT
+  `);
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "User"
+    ADD COLUMN IF NOT EXISTS "city" TEXT
+  `);
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "User"
+    ADD COLUMN IF NOT EXISTS "country" TEXT
+  `);
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "User"
+    ADD COLUMN IF NOT EXISTS "postalCode" TEXT
+  `);
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "User"
+    ADD COLUMN IF NOT EXISTS "preferredCurrency" TEXT
+  `);
+  await prisma.$executeRawUnsafe(`
+    UPDATE "User"
+    SET "preferredCurrency" = 'MNT'
+    WHERE "preferredCurrency" IS NULL
+  `);
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "User"
+    ALTER COLUMN "preferredCurrency" SET DEFAULT 'MNT'
+  `);
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "User"
+    ALTER COLUMN "preferredCurrency" SET NOT NULL
+  `);
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "User"
+    ADD COLUMN IF NOT EXISTS "marketingOptIn" BOOLEAN
+  `);
+  await prisma.$executeRawUnsafe(`
+    UPDATE "User"
+    SET "marketingOptIn" = FALSE
+    WHERE "marketingOptIn" IS NULL
+  `);
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "User"
+    ALTER COLUMN "marketingOptIn" SET DEFAULT FALSE
+  `);
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "User"
+    ALTER COLUMN "marketingOptIn" SET NOT NULL
+  `);
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "User"
+    ADD COLUMN IF NOT EXISTS "twoFactorEnabled" BOOLEAN
+  `);
+  await prisma.$executeRawUnsafe(`
+    UPDATE "User"
+    SET "twoFactorEnabled" = TRUE
+    WHERE "twoFactorEnabled" IS NULL
+  `);
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "User"
+    ALTER COLUMN "twoFactorEnabled" SET DEFAULT TRUE
+  `);
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "User"
+    ALTER COLUMN "twoFactorEnabled" SET NOT NULL
+  `);
 
   await prisma.$executeRawUnsafe(`
     CREATE TABLE IF NOT EXISTS "Card" (
