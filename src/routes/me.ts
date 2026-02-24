@@ -519,9 +519,11 @@ router.get("/me/transactions", async (req, res) => {
   }
 
   try {
-    const transactions = await withSchemaRetry(() =>
+    const transactionsRaw = await withSchemaRetry(() =>
       prisma.cardTransfer.findMany({
-        where: { userId },
+        where: {
+          OR: [{ fromCard: { userId } }, { toCard: { userId } }],
+        },
         orderBy: { createdAt: "desc" },
         take: 100,
         select: {
@@ -531,6 +533,7 @@ router.get("/me/transactions", async (req, res) => {
           fromCard: {
             select: {
               id: true,
+              userId: true,
               holderName: true,
               number: true,
             },
@@ -538,6 +541,7 @@ router.get("/me/transactions", async (req, res) => {
           toCard: {
             select: {
               id: true,
+              userId: true,
               holderName: true,
               number: true,
             },
@@ -545,6 +549,11 @@ router.get("/me/transactions", async (req, res) => {
         },
       }),
     );
+
+    const transactions = transactionsRaw.map((tx) => {
+      const direction = tx.toCard.userId === userId ? "incoming" : "outgoing";
+      return { ...tx, direction };
+    });
 
     return sendJson(res, 200, { transactions });
   } catch (err) {
